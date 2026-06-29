@@ -1,0 +1,12 @@
+export { getProvider } from "./provider.js";
+export { completeJson, extractJson } from "./json.js";
+export { resolveModel } from "./models.js";
+export { generateOpportunities, AiOpportunity, AiOpportunityList } from "./opportunities.js";
+export { anthropicProvider } from "./anthropic.js";
+export { openaiProvider } from "./openai.js";
+export {
+  LLMUnavailableError,
+  type ILLMProvider,
+  type CompletionRequest,
+  type ModelTier,
+} from "./types.js";

@@ -88,6 +88,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@icp/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@icp/analyzers':
         specifier: workspace:*
         version: link:../../packages/analyzers
@@ -109,6 +112,9 @@ importers:
       '@icp/queue':
         specifier: workspace:*
         version: link:../../packages/queue
+      '@icp/scoring':
+        specifier: workspace:*
+        version: link:../../packages/scoring
     devDependencies:
       tsx:
         specifier: ^4.19.1
@@ -116,6 +122,31 @@ importers:
       typescript:
         specifier: ^5.6.2
         version: 5.9.3
+
+  packages/ai:
+    dependencies:
+      '@icp/config':
+        specifier: workspace:*
+        version: link:../config
+      '@icp/core':
+        specifier: workspace:*
+        version: link:../core
+      '@icp/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@icp/secrets':
+        specifier: workspace:*
+        version: link:../secrets
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@22.20.0)(lightningcss@1.32.0)
 
   packages/analyzers:
     dependencies:
@@ -243,6 +274,19 @@ importers:
       typescript:
         specifier: ^5.6.2
         version: 5.9.3
+
+  packages/scoring:
+    dependencies:
+      '@icp/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@22.20.0)(lightningcss@1.32.0)
 
   packages/secrets:
     dependencies:

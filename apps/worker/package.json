@@ -11,13 +11,15 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@icp/ai": "workspace:*",
     "@icp/analyzers": "workspace:*",
     "@icp/collectors": "workspace:*",
     "@icp/config": "workspace:*",
     "@icp/core": "workspace:*",
     "@icp/db": "workspace:*",
     "@icp/logger": "workspace:*",
-    "@icp/queue": "workspace:*"
+    "@icp/queue": "workspace:*",
+    "@icp/scoring": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.19.1",

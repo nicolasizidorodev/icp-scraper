@@ -8,6 +8,8 @@ import {
 } from "@icp/queue";
 import { runDiscovery } from "./discovery.js";
 import { runWebsiteAnalysis } from "./analyze.js";
+import { runScore } from "./score.js";
+import { runOpportunities } from "./opportunities.js";
 
 // Pipeline ponta-a-ponta. discover/dedupe = F2 (reais).
 // Estágios de empresa ainda stub: analyze→F3 · score/opportunities→F4 ...
@@ -85,18 +87,38 @@ export function registerAllWorkers(): void {
     await advanceCompany(job, "analyze");
   });
 
-  companyStub("score", "F4: motor ICP");
-  companyStub("opportunities", "F4: ai.generateOpportunities");
+  // SCORE (F4): motor ICP → IcpScore.
+  registerWorker("score", async (data, { log }) => {
+    const job = data as CompanyJob;
+    const total = await runScore(job.companyId, job.scoringVersion);
+    log.info({ total }, "SCORE — IcpScore gravado");
+    await advanceCompany(job, "score");
+  });
+
+  // OPPORTUNITIES (F4): IA (degradável → fallback por regra) → Opportunity[].
+  registerWorker("opportunities", async (data, { log }) => {
+    const job = data as CompanyJob;
+    const n = await runOpportunities(job.companyId);
+    log.info({ count: n }, "OPPORTUNITIES — gravadas");
+    await advanceCompany(job, "opportunities");
+  });
+
   companyStub("proposal", "F6: ai.generateProposal");
   companyStub("landing", "F6: generateLandingCopy + lp-generator");
   companyStub("messages", "F7: ai.generateOutreach");
 
   registerWorker("finalize", async (data, { log }) => {
     const job = data as CompanyJob;
+    // prioridade do CRM = ICP score (alvos quentes no topo do Kanban)
+    const score = await prisma.icpScore.findUnique({
+      where: { companyId: job.companyId },
+      select: { total: true },
+    });
+    const priority = score?.total ?? 0;
     await prisma.crmCard.upsert({
       where: { companyId: job.companyId },
-      create: { companyId: job.companyId, status: "NEW", priority: 0 },
-      update: {},
+      create: { companyId: job.companyId, status: "NEW", priority },
+      update: { priority },
     });
     await prisma.company.update({
       where: { id: job.companyId },
