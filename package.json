@@ -19,6 +19,8 @@
     "infra:up": "docker compose --env-file .env -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose --env-file .env -f infra/docker-compose.yml down",
     "smoke": "pnpm --filter @icp/worker exec tsx scripts/smoke.ts",
+    "gen:template": "pnpm --filter @icp/worker exec tsx scripts/gen-template.ts",
+    "import:template": "pnpm --filter @icp/worker exec tsx scripts/import-template.ts",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
   },
   "dependencies": {

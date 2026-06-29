@@ -355,6 +355,18 @@ model Proposal {
 
 // ───────────────────────── Landing page ─────────────────────────
 
+// Template de LP por nicho (desenhado por Claude ou Stitch). O pipeline escolhe
+// por nicho e injeta copy/paleta/logo da empresa. source = origem do design.
+model LandingTemplate {
+  id        String   @id @default(cuid())
+  niche     String   @unique // chave normalizada (kebab) do nicho
+  label     String
+  html      String   // template com marcadores ({{}}, EACH, IF)
+  source    String   @default("claude") // builtin | claude | stitch
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum LandingPageStatus {
   PENDING
   GENERATED

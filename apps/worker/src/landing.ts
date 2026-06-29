@@ -6,6 +6,7 @@ import { renderLandingHtml, landingSlug } from "@icp/lp-generator";
 import type { LandingCopy } from "@icp/core";
 import { buildCompanyBrief } from "./brief.js";
 import { tryAi } from "./aiguard.js";
+import { resolveTemplate } from "./templates.js";
 
 /** Copy determinística a partir dos fatos da empresa (fallback sem IA). */
 async function fallbackCopy(
@@ -76,7 +77,25 @@ export async function runLanding(companyId: string, campaignId: string): Promise
     select: { palette: true },
   });
 
-  const html = renderLandingHtml({ company, copy, palette: visual?.palette });
+  // template por nicho (Claude/Stitch via DB) + logo (og:image do site)
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    select: { niche: true, subNiche: true },
+  });
+  const audit = await prisma.websiteAudit.findUnique({
+    where: { companyId },
+    select: { metaTags: true },
+  });
+  const meta = (audit?.metaTags ?? {}) as Record<string, string>;
+  const logoUrl = meta["og:image"] ?? null;
+  const template = await resolveTemplate(campaign?.subNiche ?? campaign?.niche);
+
+  const html = renderLandingHtml({
+    company: { ...company, logoUrl },
+    copy,
+    palette: visual?.palette,
+    template,
+  });
   const slug = landingSlug(company.name, companyId);
   const url = `${getEnv().LP_BASE_URL}/${slug}`;
 

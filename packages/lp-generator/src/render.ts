@@ -9,6 +9,7 @@ export interface RenderCompany {
   whatsapp?: string | null;
   phone?: string | null;
   city?: string | null;
+  logoUrl?: string | null;
 }
 
 export interface RenderInput {
@@ -71,8 +72,10 @@ export function renderLandingHtml(input: RenderInput): string {
       ADDRESS: esc(address),
       MAP_SRC: mapSrc ? esc(mapSrc) : "",
       WA_HREF: wa ? esc(wa) : "",
+      LOGO_URL: company.logoUrl ? esc(company.logoUrl) : "",
     },
     flags: {
+      HAS_LOGO: !!company.logoUrl,
       HAS_WA: !!wa,
       HAS_MAP: !!mapSrc,
       HAS_ADDRESS: !!address,

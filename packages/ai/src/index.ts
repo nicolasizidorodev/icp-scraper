@@ -7,6 +7,7 @@ export { generateProposal } from "./proposal.js";
 export { generateLandingCopy } from "./landing.js";
 export { generateOutreach, AiOutreachMessage, AiOutreachList } from "./outreach.js";
 export { analyzeScreenshot } from "./vision.js";
+export { generateLandingTemplate } from "./designer.js";
 export { anthropicProvider } from "./anthropic.js";
 export { openaiProvider } from "./openai.js";
 export {

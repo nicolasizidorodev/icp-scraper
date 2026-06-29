@@ -40,6 +40,7 @@ footer{text-align:center;padding:28px;color:#94a3b8;font-size:.8rem}
 </head>
 <body>
 <header class="hero">
+  <!--IF:HAS_LOGO--><img src="{{LOGO_URL}}" alt="{{COMPANY_NAME}}" style="height:56px;margin:0 auto 20px;display:block;object-fit:contain"><!--END:IF:HAS_LOGO-->
   <h1>{{HERO_HEADLINE}}</h1>
   <p>{{HERO_SUB}}</p>
   <a class="btn" href="{{CTA_HREF}}" target="_blank" rel="noopener">{{CTA_LABEL}}</a>
