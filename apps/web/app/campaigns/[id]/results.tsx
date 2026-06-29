@@ -8,6 +8,8 @@ interface CompanyRow {
   category: string | null;
   city: string | null;
   website: string | null;
+  rating: number | null;
+  reviewCount: number | null;
   pipelineStage: string;
   icpScore: { total: number; buyingIntent: number; reputation: number } | null;
   landingPage: { slug: string; status: string } | null;
@@ -188,8 +190,19 @@ function Expanded({ id }: { id: string }) {
   );
 }
 
+const FILTERS: { key: string; label: string; fn: (c: CompanyRow) => boolean }[] = [
+  { key: "todos", label: "Todos", fn: () => true },
+  { key: "sem-site", label: "Sem site", fn: (c) => !c.websiteAudit?.exists },
+  { key: "com-site", label: "Com site", fn: (c) => !!c.websiteAudit?.exists },
+  { key: "com-ig", label: "Com IG", fn: (c) => c.socialProfiles.some((s) => s.network === "instagram") },
+  { key: "sem-ig", label: "Sem IG", fn: (c) => !c.socialProfiles.some((s) => s.network === "instagram") },
+  { key: "com-ads", label: "Com ads", fn: (c) => !!c.adProfile?.runsAds },
+  { key: "sem-ads", label: "Sem ads", fn: (c) => !c.adProfile?.runsAds },
+];
+
 export function Results({ companies }: { companies: CompanyRow[] }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [tab, setTab] = useState("todos");
 
   if (companies.length === 0) {
     return (
@@ -199,22 +212,47 @@ export function Results({ companies }: { companies: CompanyRow[] }) {
     );
   }
 
+  const filter = FILTERS.find((f) => f.key === tab) ?? FILTERS[0]!;
+  const rows = companies.filter(filter.fn);
+
   return (
-    <div className="overflow-hidden rounded-lg border border-neutral-800">
-      <table className="w-full text-sm">
-        <thead className="bg-neutral-900 text-left text-neutral-400">
-          <tr>
-            <th className="px-4 py-2">Empresa</th>
-            <th className="px-4 py-2 text-center">ICP</th>
-            <th className="px-4 py-2 text-center">Intenção</th>
-            <th className="px-4 py-2 text-center">Oport.</th>
-            <th className="px-4 py-2">Presença</th>
-            <th className="px-4 py-2">Estágio</th>
-            <th className="px-4 py-2">LP</th>
-          </tr>
-        </thead>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-1">
+        {FILTERS.map((f) => {
+          const count = companies.filter(f.fn).length;
+          const active = f.key === tab;
+          return (
+            <button
+              key={f.key}
+              onClick={() => setTab(f.key)}
+              className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                active
+                  ? "bg-neutral-800 font-medium text-neutral-100"
+                  : "text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100"
+              }`}
+            >
+              {f.label} <span className="text-neutral-500">({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-neutral-800">
+        <table className="w-full text-sm">
+          <thead className="bg-neutral-900 text-left text-neutral-400">
+            <tr>
+              <th className="px-4 py-2">Empresa</th>
+              <th className="px-4 py-2 text-center">ICP</th>
+              <th className="px-4 py-2 text-center">Intenção</th>
+              <th className="px-4 py-2 text-center">Avaliação</th>
+              <th className="px-4 py-2 text-center">Oport.</th>
+              <th className="px-4 py-2">Presença</th>
+              <th className="px-4 py-2">Estágio</th>
+              <th className="px-4 py-2">LP</th>
+            </tr>
+          </thead>
         <tbody>
-          {companies.map((c) => (
+          {rows.map((c) => (
             <Fragment key={c.id}>
               <tr
                 onClick={() => setOpen(open === c.id ? null : c.id)}
@@ -234,6 +272,16 @@ export function Results({ companies }: { companies: CompanyRow[] }) {
                   )}
                 </td>
                 <td className="px-4 py-2 text-center text-neutral-400">{c.icpScore?.buyingIntent ?? "—"}</td>
+                <td className="px-4 py-2 text-center text-neutral-400">
+                  {c.rating != null ? (
+                    <span title={`${c.reviewCount ?? 0} avaliações`}>
+                      {c.rating.toFixed(1)}★{" "}
+                      <span className="text-xs text-neutral-600">({c.reviewCount ?? 0})</span>
+                    </span>
+                  ) : (
+                    <span className="text-neutral-600">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-center text-neutral-400">{c._count.opportunities}</td>
                 <td className="px-4 py-2"><Presence c={c} /></td>
                 <td className="px-4 py-2 text-neutral-400">{c.pipelineStage}</td>
@@ -255,7 +303,7 @@ export function Results({ companies }: { companies: CompanyRow[] }) {
               </tr>
               {open === c.id && (
                 <tr>
-                  <td colSpan={7} className="p-0">
+                  <td colSpan={8} className="p-0">
                     <Expanded id={c.id} />
                   </td>
                 </tr>
@@ -264,6 +312,7 @@ export function Results({ companies }: { companies: CompanyRow[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
