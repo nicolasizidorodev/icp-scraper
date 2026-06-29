@@ -13,6 +13,25 @@ export function KeyForm({ status, meta }: { status: Status; meta: { label: strin
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<Status>(status);
+  const [testing, setTesting] = useState(false);
+  const [test, setTest] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function runTest() {
+    setTesting(true);
+    setTest(null);
+    try {
+      const res = await fetch("/api/settings/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: state.name }),
+      });
+      setTest(await res.json());
+    } catch {
+      setTest({ ok: false, message: "falha de rede" });
+    } finally {
+      setTesting(false);
+    }
+  }
 
   async function save(clear = false) {
     setSaving(true);
@@ -79,7 +98,21 @@ export function KeyForm({ status, meta }: { status: Status; meta: { label: strin
             Remover
           </button>
         )}
+        <button
+          onClick={runTest}
+          disabled={testing || !state.isSet}
+          title={state.isSet ? "Testar conexão" : "Configure a chave primeiro"}
+          className="rounded border border-neutral-700 px-3 py-1.5 text-sm disabled:opacity-40"
+        >
+          {testing ? "Testando…" : "Testar"}
+        </button>
       </div>
+      {test && (
+        <p className={`mt-2 text-xs ${test.ok ? "text-emerald-400" : "text-red-400"}`}>
+          {test.ok ? "✓ " : "✗ "}
+          {test.message}
+        </p>
+      )}
     </div>
   );
 }
