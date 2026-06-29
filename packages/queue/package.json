@@ -1,0 +1,31 @@
+{
+  "name": "@icp/queue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@icp/config": "workspace:*",
+    "@icp/core": "workspace:*",
+    "@icp/db": "workspace:*",
+    "@icp/logger": "workspace:*",
+    "bullmq": "^5.21.0",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}
