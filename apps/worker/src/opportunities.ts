@@ -2,6 +2,7 @@ import { prisma, type Prisma } from "@icp/db";
 import { childLogger } from "@icp/logger";
 import { getProvider, generateOpportunities } from "@icp/ai";
 import { deriveOpportunities, type OpportunityInput } from "@icp/scoring";
+import { tryAi } from "./aiguard.js";
 import type { OpportunitySeverity } from "@icp/core";
 
 interface OppRow {
@@ -87,26 +88,26 @@ function fallbackInput(
  * Estágio OPPORTUNITIES (F4): tenta LLM; sem chave/erro → fallback determinístico
  * por regra. Sempre entrega valor. Idempotente (substitui as da empresa).
  */
-export async function runOpportunities(companyId: string): Promise<number> {
+export async function runOpportunities(companyId: string, campaignId: string): Promise<number> {
   const log = childLogger({ stage: "opportunities", companyId });
   const { company, audit, seo } = await loadData(companyId);
 
   let rows: OppRow[] = [];
-  const provider = getProvider();
+  const brief = buildBrief(company, audit, seo);
 
-  if (await provider.isReady()) {
-    try {
-      const ai = await generateOpportunities(buildBrief(company, audit, seo));
-      rows = ai.map((o) => ({
-        title: o.title,
-        detail: o.detail,
-        severity: o.severity,
-        evidence: { source: provider.name, note: o.evidence ?? null } as Prisma.InputJsonValue,
-      }));
-      log.info({ count: rows.length, via: provider.name }, "oportunidades por IA");
-    } catch (err) {
-      log.warn({ err }, "LLM falhou — usando fallback por regra");
-    }
+  const ai = await tryAi(
+    campaignId,
+    { tier: "bulk", inputText: brief, maxTokens: 2048, stage: "opportunities" },
+    () => generateOpportunities(brief),
+  );
+  if (ai) {
+    rows = ai.map((o) => ({
+      title: o.title,
+      detail: o.detail,
+      severity: o.severity,
+      evidence: { source: getProvider().name, note: o.evidence ?? null } as Prisma.InputJsonValue,
+    }));
+    log.info({ count: rows.length }, "oportunidades por IA");
   }
 
   if (rows.length === 0) {

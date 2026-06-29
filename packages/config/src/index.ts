@@ -40,6 +40,11 @@ const EnvSchema = z.object({
   // limites
   LLM_BUDGET_USD_PER_CAMPAIGN: z.coerce.number().default(10),
   MAX_CONCURRENCY_ANALYZE: z.coerce.number().int().default(20),
+  MAX_CONCURRENCY_AI: z.coerce.number().int().default(3),
+  MAX_CONCURRENCY_DEFAULT: z.coerce.number().int().default(5),
+
+  // auth (scaffold multi-tenant): se setado, exige Bearer nas rotas de escrita
+  ADMIN_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

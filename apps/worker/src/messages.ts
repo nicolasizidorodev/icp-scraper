@@ -2,6 +2,7 @@ import { prisma } from "@icp/db";
 import { childLogger } from "@icp/logger";
 import { getProvider, generateOutreach, type AiOutreachMessage } from "@icp/ai";
 import { buildCompanyBrief } from "./brief.js";
+import { tryAi } from "./aiguard.js";
 
 type Channel = "WHATSAPP" | "EMAIL";
 
@@ -32,25 +33,18 @@ async function fallbackMessages(
 }
 
 /** Estágio MESSAGES (F7): outreach WhatsApp + Email (IA → fallback). Idempotente. */
-export async function runOutreach(companyId: string): Promise<number> {
+export async function runOutreach(companyId: string, campaignId: string): Promise<number> {
   const log = childLogger({ stage: "messages", companyId });
   const { brief, company } = await buildCompanyBrief(companyId);
-  const provider = getProvider();
 
-  let msgs: AiOutreachMessage[];
-  let generatedBy = "rule:fallback";
+  const ai = await tryAi(
+    campaignId,
+    { tier: "bulk", inputText: brief, maxTokens: 1200, stage: "messages" },
+    () => generateOutreach(brief),
+  );
 
-  if (await provider.isReady()) {
-    try {
-      msgs = await generateOutreach(brief);
-      generatedBy = provider.name;
-    } catch (err) {
-      log.warn({ err }, "LLM outreach falhou — fallback");
-      msgs = await fallbackMessages(companyId, company.name);
-    }
-  } else {
-    msgs = await fallbackMessages(companyId, company.name);
-  }
+  const msgs: AiOutreachMessage[] = ai ?? (await fallbackMessages(companyId, company.name));
+  const generatedBy = ai ? getProvider().name : "rule:fallback";
 
   // dedupe por canal (schema tem @@unique([companyId, channel]))
   const byChannel = new Map<Channel, AiOutreachMessage>();

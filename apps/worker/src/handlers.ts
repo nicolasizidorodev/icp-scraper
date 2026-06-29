@@ -85,7 +85,7 @@ export function registerAllWorkers(): void {
   // ANALYZE (F3+F5): site/SEO/tech + visual + GBP + social (cada um degradável).
   registerWorker("analyze", async (data, { log }) => {
     const job = data as CompanyJob;
-    await runAnalyze(job.companyId);
+    await runAnalyze(job.companyId, job.campaignId);
     log.info("ANALYZE — auditorias gravadas");
     await advanceCompany(job, "analyze");
   });
@@ -101,7 +101,7 @@ export function registerAllWorkers(): void {
   // OPPORTUNITIES (F4): IA (degradável → fallback por regra) → Opportunity[].
   registerWorker("opportunities", async (data, { log }) => {
     const job = data as CompanyJob;
-    const n = await runOpportunities(job.companyId);
+    const n = await runOpportunities(job.companyId, job.campaignId);
     log.info({ count: n }, "OPPORTUNITIES — gravadas");
     await advanceCompany(job, "opportunities");
   });
@@ -109,7 +109,7 @@ export function registerAllWorkers(): void {
   // PROPOSAL (F6): proposta comercial (IA → fallback por regra).
   registerWorker("proposal", async (data, { log }) => {
     const job = data as CompanyJob;
-    await runProposal(job.companyId);
+    await runProposal(job.companyId, job.campaignId);
     log.info("PROPOSAL — gravada");
     await advanceCompany(job, "proposal");
   });
@@ -117,7 +117,7 @@ export function registerAllWorkers(): void {
   // LANDING (F6): copy personalizada + render HTML autônomo → LandingPage.
   registerWorker("landing", async (data, { log }) => {
     const job = data as CompanyJob;
-    const slug = await runLanding(job.companyId);
+    const slug = await runLanding(job.companyId, job.campaignId);
     log.info({ slug }, "LANDING — gerada");
     await advanceCompany(job, "landing");
   });
@@ -125,7 +125,7 @@ export function registerAllWorkers(): void {
   // MESSAGES (F7): outreach WhatsApp + Email (IA → fallback por regra).
   registerWorker("messages", async (data, { log }) => {
     const job = data as CompanyJob;
-    const n = await runOutreach(job.companyId);
+    const n = await runOutreach(job.companyId, job.campaignId);
     log.info({ count: n }, "MESSAGES — gravadas");
     await advanceCompany(job, "messages");
   });

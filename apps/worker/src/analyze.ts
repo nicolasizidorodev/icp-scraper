@@ -1,7 +1,8 @@
 import { prisma, type Prisma } from "@icp/db";
 import { childLogger } from "@icp/logger";
 import { analyzeWebsite, fetchGbpDetails, type WebsiteAnalysis } from "@icp/analyzers";
-import { getProvider, analyzeScreenshot, type InlineImage } from "@icp/ai";
+import { analyzeScreenshot, type InlineImage } from "@icp/ai";
+import { tryAi } from "./aiguard.js";
 
 /** Persiste WebsiteAudit + SeoAudit a partir do resultado da análise (idempotente). */
 async function persistWebsite(companyId: string, a: WebsiteAnalysis): Promise<void> {
@@ -70,9 +71,8 @@ function toInlineImage(dataUri?: string): InlineImage | null {
 }
 
 /** Persiste VisualAnalysis: paleta (programática) + análise de visão por IA (degradável). */
-async function persistVisual(companyId: string, a: WebsiteAnalysis): Promise<void> {
+async function persistVisual(companyId: string, campaignId: string, a: WebsiteAnalysis): Promise<void> {
   if (!a.exists) return;
-  const log = childLogger({ stage: "analyze:visual", companyId });
 
   const base: Prisma.VisualAnalysisUncheckedCreateInput = {
     companyId,
@@ -82,10 +82,14 @@ async function persistVisual(companyId: string, a: WebsiteAnalysis): Promise<voi
   };
 
   const image = toInlineImage(a.screenshot);
-  const provider = getProvider();
-  if (image && (await provider.isReady())) {
-    try {
-      const v = await analyzeScreenshot(image);
+  if (image) {
+    // ~1000 tokens de imagem aproximados no inputText p/ o guard de custo
+    const v = await tryAi(
+      campaignId,
+      { tier: "vision", inputText: "x".repeat(4000), maxTokens: 1024, stage: "analyze:visual" },
+      () => analyzeScreenshot(image),
+    );
+    if (v) {
       Object.assign(base, {
         designQuality: v.designQuality,
         premiumScore: v.premiumScore,
@@ -97,8 +101,6 @@ async function persistVisual(companyId: string, a: WebsiteAnalysis): Promise<voi
         status: "OK" as const,
         raw: v as unknown as Prisma.InputJsonValue,
       });
-    } catch (err) {
-      log.warn({ err }, "visão por IA falhou — mantém só paleta");
     }
   }
 
@@ -159,7 +161,7 @@ async function persistGbp(companyId: string, placeId: string | null): Promise<vo
 }
 
 /** Estágio ANALYZE (F3+F5): site/SEO/tech + visual + GBP + social. Degradável. */
-export async function runAnalyze(companyId: string): Promise<WebsiteAnalysis> {
+export async function runAnalyze(companyId: string, campaignId: string): Promise<WebsiteAnalysis> {
   const log = childLogger({ stage: "analyze", companyId });
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
@@ -171,7 +173,7 @@ export async function runAnalyze(companyId: string): Promise<WebsiteAnalysis> {
 
   // enriquecimento F5 em paralelo, cada um degradável
   await Promise.all([
-    persistVisual(companyId, result),
+    persistVisual(companyId, campaignId, result),
     persistSocial(companyId, result, {
       instagram: company.instagram,
       facebook: company.facebook,

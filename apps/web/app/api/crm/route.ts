@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@icp/db";
+import { unauthorized } from "../../_lib/auth";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,8 @@ export async function GET() {
 
 // PUT /api/crm — move um cartão de status (registra evento no histórico).
 export async function PUT(req: Request) {
+  const denied = unauthorized(req);
+  if (denied) return denied;
   const body = (await req.json().catch(() => null)) as { companyId?: string; status?: string } | null;
   if (!body?.companyId || !STATUSES.includes(body.status as Status)) {
     return NextResponse.json({ error: "companyId e status válidos obrigatórios" }, { status: 400 });

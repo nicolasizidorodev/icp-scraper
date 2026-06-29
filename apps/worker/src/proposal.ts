@@ -3,6 +3,7 @@ import { childLogger } from "@icp/logger";
 import { getProvider, generateProposal } from "@icp/ai";
 import type { ProposalContent } from "@icp/core";
 import { buildCompanyBrief } from "./brief.js";
+import { tryAi } from "./aiguard.js";
 
 /** Proposta determinística a partir das oportunidades (fallback sem IA). */
 async function fallbackProposal(companyId: string, name: string): Promise<ProposalContent> {
@@ -26,25 +27,18 @@ async function fallbackProposal(companyId: string, name: string): Promise<Propos
 }
 
 /** Estágio PROPOSAL (F6): proposta comercial (IA → fallback por regra). */
-export async function runProposal(companyId: string): Promise<void> {
+export async function runProposal(companyId: string, campaignId: string): Promise<void> {
   const log = childLogger({ stage: "proposal", companyId });
   const { brief, company } = await buildCompanyBrief(companyId);
-  const provider = getProvider();
 
-  let content: ProposalContent;
-  let generatedBy = "rule:fallback";
+  const ai = await tryAi(
+    campaignId,
+    { tier: "longform", inputText: brief, maxTokens: 3000, stage: "proposal" },
+    () => generateProposal(brief),
+  );
 
-  if (await provider.isReady()) {
-    try {
-      content = await generateProposal(brief);
-      generatedBy = provider.name;
-    } catch (err) {
-      log.warn({ err }, "LLM proposta falhou — fallback");
-      content = await fallbackProposal(companyId, company.name);
-    }
-  } else {
-    content = await fallbackProposal(companyId, company.name);
-  }
+  const content: ProposalContent = ai ?? (await fallbackProposal(companyId, company.name));
+  const generatedBy = ai ? getProvider().name : "rule:fallback";
 
   await prisma.proposal.upsert({
     where: { companyId },

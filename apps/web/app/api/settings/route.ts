@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { listApiKeyStatus, setApiKey, deleteApiKey, MANAGED_KEYS } from "@icp/secrets";
+import { unauthorized } from "../../_lib/auth";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,8 @@ export async function GET() {
 
 // PUT /api/settings — define ou remove uma chave. Body: { name, value }.
 export async function PUT(req: Request) {
+  const denied = unauthorized(req);
+  if (denied) return denied;
   const body = (await req.json().catch(() => null)) as { name?: string; value?: string } | null;
   if (!body?.name || !MANAGED_KEYS.includes(body.name as (typeof MANAGED_KEYS)[number])) {
     return NextResponse.json({ error: "name inválido" }, { status: 400 });

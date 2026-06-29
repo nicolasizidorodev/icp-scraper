@@ -5,6 +5,7 @@ import { getProvider, generateLandingCopy } from "@icp/ai";
 import { renderLandingHtml, landingSlug } from "@icp/lp-generator";
 import type { LandingCopy } from "@icp/core";
 import { buildCompanyBrief } from "./brief.js";
+import { tryAi } from "./aiguard.js";
 
 /** Copy determinística a partir dos fatos da empresa (fallback sem IA). */
 async function fallbackCopy(
@@ -56,25 +57,18 @@ async function fallbackCopy(
 }
 
 /** Estágio LANDING (F6): copy personalizada (IA → fallback) + render HTML + persist. */
-export async function runLanding(companyId: string): Promise<string> {
+export async function runLanding(companyId: string, campaignId: string): Promise<string> {
   const log = childLogger({ stage: "landing", companyId });
   const { brief, company } = await buildCompanyBrief(companyId);
-  const provider = getProvider();
 
-  let copy: LandingCopy;
-  let generatedBy = "rule:fallback";
+  const ai = await tryAi(
+    campaignId,
+    { tier: "longform", inputText: brief, maxTokens: 3500, stage: "landing" },
+    () => generateLandingCopy(brief),
+  );
 
-  if (await provider.isReady()) {
-    try {
-      copy = await generateLandingCopy(brief);
-      generatedBy = provider.name;
-    } catch (err) {
-      log.warn({ err }, "LLM landing falhou — fallback");
-      copy = await fallbackCopy(companyId, company);
-    }
-  } else {
-    copy = await fallbackCopy(companyId, company);
-  }
+  const copy: LandingCopy = ai ?? (await fallbackCopy(companyId, company));
+  const generatedBy = ai ? getProvider().name : "rule:fallback";
 
   // paleta da análise visual (F5) se houver; senão tema neutro no renderer
   const visual = await prisma.visualAnalysis.findUnique({

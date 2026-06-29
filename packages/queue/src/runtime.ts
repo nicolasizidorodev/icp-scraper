@@ -46,9 +46,17 @@ export type StageHandler<T extends JobData = JobData> = (
  * Registra um worker para um estágio com tracking de JobRun e tratamento de erro.
  * Concorrência configurável; ANALYZE usa MAX_CONCURRENCY_ANALYZE.
  */
+// Estágios que disparam LLM → concorrência menor (custo/rate-limit).
+const AI_STAGES: QueueName[] = ["opportunities", "proposal", "landing", "messages"];
+
 export function registerWorker(name: QueueName, handler: StageHandler): Worker {
   const env = getEnv();
-  const concurrency = name === "analyze" ? env.MAX_CONCURRENCY_ANALYZE : 5;
+  const concurrency =
+    name === "analyze"
+      ? env.MAX_CONCURRENCY_ANALYZE
+      : AI_STAGES.includes(name)
+        ? env.MAX_CONCURRENCY_AI
+        : env.MAX_CONCURRENCY_DEFAULT;
 
   const worker = new Worker(
     QUEUES[name],

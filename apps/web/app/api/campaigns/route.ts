@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { CampaignInput } from "@icp/core";
 import { prisma } from "@icp/db";
 import { enqueue } from "@icp/queue";
+import { unauthorized } from "../../_lib/auth";
 
 export const runtime = "nodejs";
 
 // POST /api/campaigns — cria campanha e dispara o pipeline (estágio DISCOVER).
 export async function POST(req: Request) {
+  const denied = unauthorized(req);
+  if (denied) return denied;
   const json = await req.json().catch(() => null);
   const parsed = CampaignInput.safeParse(json);
   if (!parsed.success) {

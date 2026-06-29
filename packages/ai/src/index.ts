@@ -1,6 +1,7 @@
 export { getProvider } from "./provider.js";
 export { completeJson, extractJson } from "./json.js";
 export { resolveModel } from "./models.js";
+export { estimateCostUsd, approxTokens } from "./cost.js";
 export { generateOpportunities, AiOpportunity, AiOpportunityList } from "./opportunities.js";
 export { generateProposal } from "./proposal.js";
 export { generateLandingCopy } from "./landing.js";
