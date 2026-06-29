@@ -1,0 +1,446 @@
+// ICP Prospector — Prisma schema
+// Postgres. jsonb para payloads brutos (proveniência). Multi-tenant via tenantId.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Tenancy & campanhas ─────────────────────────
+
+model Tenant {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  createdAt DateTime   @default(now())
+  campaigns Campaign[]
+  companies Company[]
+  apiKeys   ApiKey[]
+}
+
+// Chaves de API inseridas pelo usuário na UI (criptografadas em repouso).
+// Resolução: DB (este modelo) tem prioridade sobre env (ver packages/secrets).
+model ApiKey {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String   // GOOGLE_PLACES_API_KEY | ANTHROPIC_API_KEY | ...
+  ciphertext String   // AES-256-GCM (iv:tag:data, base64)
+  last4      String   // p/ exibir mascarado na UI sem revelar a chave
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, name])
+}
+
+enum CampaignStatus {
+  DRAFT
+  DISCOVERING
+  ANALYZING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Campaign {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  // critérios de busca
+  niche     String
+  subNiche  String?
+  city      String
+  state     String?
+  country   String   @default("BR")
+  maxCompanies Int   @default(100)
+
+  status    CampaignStatus @default(DRAFT)
+  // contadores de progresso (atualizados pelo pipeline)
+  discovered Int @default(0)
+  analyzed   Int @default(0)
+  qualified  Int @default(0)
+
+  scoringVersion String @default("v1")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  companies Company[]
+  jobRuns   JobRun[]
+
+  @@index([tenantId, status])
+}
+
+// ───────────────────────── Empresa (núcleo) ─────────────────────────
+
+model Company {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  // dados unificados
+  name       String
+  phone      String?
+  whatsapp   String?
+  email      String?
+  website    String?
+  instagram  String?
+  facebook   String?
+  linkedin   String?
+  googlePlaceId String?
+  category   String?
+  yearsActive Int?
+  cnpj       String?
+
+  // endereço / geo
+  address    String?
+  city       String?
+  state      String?
+  country    String?
+  lat        Float?
+  lng        Float?
+
+  // chave de dedupe (nome+endereço+telefone+domínio normalizados)
+  dedupeKey  String?
+
+  // resumo GBP rápido (detalhe em GbpProfile)
+  rating     Float?
+  reviewCount Int?
+  photoCount Int?
+
+  pipelineStage String @default("DISCOVERED") // espelha o estágio atual
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sources       CompanySource[]
+  gbp           GbpProfile?
+  websiteAudit  WebsiteAudit?
+  seoAudit      SeoAudit?
+  visualAnalysis VisualAnalysis?
+  socialProfiles SocialProfile[]
+  icpScore      IcpScore?
+  opportunities Opportunity[]
+  proposal      Proposal?
+  landingPage   LandingPage?
+  messages      OutreachMessage[]
+  crmCard       CrmCard?
+  jobRuns       JobRun[]
+
+  @@unique([campaignId, dedupeKey])
+  @@index([tenantId])
+  @@index([campaignId, pipelineStage])
+}
+
+// proveniência: payload bruto por fonte
+model CompanySource {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  source    String   // "places" | "cnpj" | "website" | "apify" ...
+  raw       Json
+  fetchedAt DateTime @default(now())
+
+  @@unique([companyId, source])
+}
+
+// ───────────────────────── Auditorias ─────────────────────────
+
+enum AuditStatus {
+  PENDING
+  OK
+  PARTIAL
+  FAILED
+}
+
+model GbpProfile {
+  id            String   @id @default(cuid())
+  companyId     String   @unique
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  rating        Float?
+  reviewCount   Int?
+  reviewFrequency Float?  // reviews/mês estimado
+  lastReviewAt  DateTime?
+  ownerResponseRate Float?
+  photoCount    Int?
+  hasQandA      Boolean  @default(false)
+  categories    String[]
+  services      String[]
+  description   String?
+  postCount     Int?
+  status        AuditStatus @default(PENDING)
+  raw           Json?
+  updatedAt     DateTime @updatedAt
+}
+
+model WebsiteAudit {
+  id            String   @id @default(cuid())
+  companyId     String   @unique
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  exists        Boolean  @default(false)
+  finalUrl      String?
+  loadTimeMs    Int?
+  // Lighthouse / PSI (0-100)
+  perfScore     Int?
+  seoScore      Int?
+  a11yScore     Int?
+  bestPractices Int?
+  // Core Web Vitals
+  lcpMs         Int?
+  cls           Float?
+  inpMs         Int?
+
+  ssl           Boolean?
+  domainAgeDays Int?
+  cms           String?
+  framework     String?
+  responsive    Boolean?
+
+  // presença de recursos (tech detect + onpage)
+  hasWhatsappBtn   Boolean @default(false)
+  hasBooking       Boolean @default(false)
+  hasMetaPixel     Boolean @default(false)
+  hasGA            Boolean @default(false)
+  hasGTM           Boolean @default(false)
+  hasClarity       Boolean @default(false)
+  hasChat          Boolean @default(false)
+  hasForms         Boolean @default(false)
+  hasBlog          Boolean @default(false)
+
+  // onpage / SEO técnico
+  hasSchema     Boolean @default(false)
+  hasOG         Boolean @default(false)
+  hasFavicon    Boolean @default(false)
+  hasRobots     Boolean @default(false)
+  hasSitemap    Boolean @default(false)
+  pageCount     Int?
+  brokenLinks   Int?
+  notFoundErrors Int?
+  lastUpdatedAt DateTime?
+
+  metaTags      Json?    // {title, description, canonical, og, ...}
+  techStack     Json?    // lista detectada
+  status        AuditStatus @default(PENDING)
+  raw           Json?
+  updatedAt     DateTime @updatedAt
+}
+
+model SeoAudit {
+  id            String   @id @default(cuid())
+  companyId     String   @unique
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  indexed       Boolean?
+  title         String?
+  description   String?
+  canonical     String?
+  headingIssues Json?    // estrutura h1..h6
+  keywords      String[]
+  internalLinks Int?
+  cwvPass       Boolean?
+  status        AuditStatus @default(PENDING)
+  raw           Json?
+  updatedAt     DateTime @updatedAt
+}
+
+model VisualAnalysis {
+  id            String   @id @default(cuid())
+  companyId     String   @unique
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  screenshotUrl String?
+  palette       String[] // hex dominantes (extração programática)
+  designQuality Int?     // 0-100 (LLM)
+  premiumScore  Int?
+  amateurFlags  String[]
+  realPhotos    Boolean?
+  legibility    Int?
+  ctaQuality    Int?
+  uxNotes       String?
+  status        AuditStatus @default(PENDING)
+  raw           Json?      // resposta estruturada do LLM de visão
+  updatedAt     DateTime @updatedAt
+}
+
+model SocialProfile {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  network     String   // "instagram" | "facebook" | "linkedin"
+  handle      String?
+  url         String?
+  followers   Int?
+  postCount   Int?
+  engagement  Float?
+  bioLink     String?
+  lastPostAt  DateTime?
+  status      AuditStatus @default(PENDING)
+  raw         Json?
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, network])
+}
+
+// ───────────────────────── ICP score ─────────────────────────
+
+model IcpScore {
+  id          String   @id @default(cuid())
+  companyId   String   @unique
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  total       Int      // 0-100
+  breakdown   Json     // {criterio: {raw, weight, points}}
+  buyingIntent Int     // sub-score de intenção de compra
+  reputation  Int      // sub-score de reputação
+  scoringVersion String @default("v1")
+  computedAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([total])
+}
+
+// ───────────────────────── Oportunidades / proposta ─────────────────────────
+
+enum OpportunitySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Opportunity {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title       String
+  detail      String   // específico da empresa, nunca genérico
+  severity    OpportunitySeverity @default(MEDIUM)
+  evidence    Json?    // de qual auditoria saiu
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, severity])
+}
+
+model Proposal {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  executiveSummary String
+  problems        String
+  estimatedImpact String
+  suggestions     String
+  roiEstimate     String
+  priorities      String
+  generatedBy     String   // modelo usado
+  createdAt       DateTime @default(now())
+}
+
+// ───────────────────────── Landing page ─────────────────────────
+
+enum LandingPageStatus {
+  PENDING
+  GENERATED
+  DEPLOYED
+  FAILED
+}
+
+model LandingPage {
+  id          String   @id @default(cuid())
+  companyId   String   @unique
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  slug        String   @unique
+  url         String?
+  status      LandingPageStatus @default(PENDING)
+  palette     String[]
+  copy        Json     // seções: hero, benefits, procedures, team, faq, contact...
+  html        String?  // render final (ou referência a storage)
+  generatedBy String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ───────────────────────── Outreach ─────────────────────────
+
+enum OutreachChannel {
+  WHATSAPP
+  LINKEDIN
+  EMAIL
+}
+
+model OutreachMessage {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  channel   OutreachChannel
+  subject   String?  // email
+  body      String
+  generatedBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, channel])
+}
+
+// ───────────────────────── CRM ─────────────────────────
+
+enum CrmStatus {
+  NEW
+  CONTACTED
+  REPLIED
+  MEETING
+  PROPOSAL
+  WON
+  LOST
+}
+
+model CrmCard {
+  id         String   @id @default(cuid())
+  companyId  String   @unique
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status     CrmStatus @default(NEW)
+  priority   Int      @default(0) // derivado do ICP score
+  notes      String?
+  history    CrmEvent[]
+  updatedAt  DateTime @updatedAt
+}
+
+model CrmEvent {
+  id        String   @id @default(cuid())
+  cardId    String
+  card      CrmCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  fromStatus CrmStatus?
+  toStatus   CrmStatus
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([cardId])
+}
+
+// ───────────────────────── Observabilidade de jobs ─────────────────────────
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+model JobRun {
+  id         String   @id @default(cuid())
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  companyId  String?
+  company    Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  stage      String   // DISCOVER | ANALYZE:website | SCORE ...
+  status     JobStatus @default(QUEUED)
+  attempt    Int      @default(0)
+  progress   Int      @default(0)
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, stage])
+  @@index([companyId, stage])
+}

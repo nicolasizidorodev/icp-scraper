@@ -1,0 +1,41 @@
+{
+  "name": "icp-prospector",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "ioredis": "5.11.1"
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.12.0",
+    "@types/node": "^22.7.0",
+    "eslint": "^9.12.0",
+    "prettier": "^3.3.3",
+    "prisma": "5.22.0",
+    "turbo": "^2.1.3",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.8.0"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env"],
+  "globalEnv": [
+    "DATABASE_URL",
+    "REDIS_URL",
+    "LLM_PROVIDER",
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "MODEL_BULK",
+    "MODEL_LONGFORM",
+    "MODEL_VISION",
+    "GOOGLE_PLACES_API_KEY",
+    "PAGESPEED_API_KEY",
+    "GOOGLE_MAPS_API_KEY",
+    "COLLECTOR_PLACES_ENABLED",
+    "COLLECTOR_CNPJ_ENABLED",
+    "COLLECTOR_APIFY_ENABLED",
+    "APIFY_TOKEN",
+    "SOCIAL_ANALYSIS_ENABLED",
+    "LP_BASE_URL",
+    "LLM_BUDGET_USD_PER_CAMPAIGN",
+    "MAX_CONCURRENCY_ANALYZE"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    }
+  }
+}
