@@ -22,8 +22,11 @@ export function renderTemplate(tpl: string, ctx: TemplateCtx): string {
     /<!--EACH:(\w+)-->([\s\S]*?)<!--END:EACH:\1-->/g,
     (_full, name: string, inner: string) => {
       const items = ctx.sections?.[name] ?? [];
+      // só substitui chaves do item; desconhecidas seguem p/ o passe global
       return items
-        .map((item) => inner.replace(/\{\{(\w+)\}\}/g, (_m, k: string) => item[k] ?? ""))
+        .map((item) =>
+          inner.replace(/\{\{(\w+)\}\}/g, (m, k: string) => (k in item ? item[k]! : m)),
+        )
         .join("");
     },
   );
