@@ -17,6 +17,8 @@ export interface OpportunityInput {
   hasRobots?: boolean;
   hasSitemap?: boolean;
   runsAds?: boolean | null;
+  /** tipo do link cadastrado como site (instagram/aggregator/... quando não é site real) */
+  linkKind?: string | null;
 }
 
 /**
@@ -42,12 +44,14 @@ export function deriveOpportunities(input: OpportunityInput): DerivedOpportunity
   }
 
   if (!w || !w.exists) {
+    const socialLink = ["instagram", "facebook", "aggregator"].includes(input.linkKind ?? "");
     out.push({
-      title: "Empresa sem site próprio",
-      detail:
-        "Não foi encontrado site institucional. Toda a presença depende de perfis de terceiros — sem ativo digital próprio para captar e converter clientes.",
+      title: socialLink ? "Sem site — só perfil/link social" : "Empresa sem site próprio",
+      detail: socialLink
+        ? `O endereço divulgado como "site" é na verdade um ${input.linkKind === "aggregator" ? "agregador de links (linktree)" : input.linkKind}. Não há site institucional próprio para captar e converter — toda a operação depende de plataforma de terceiros.`
+        : "Não foi encontrado site institucional. Toda a presença depende de perfis de terceiros — sem ativo digital próprio para captar e converter clientes.",
       severity: "CRITICAL",
-      evidence: { websiteExists: false },
+      evidence: { websiteExists: false, linkKind: input.linkKind ?? null },
     });
     return out;
   }

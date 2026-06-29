@@ -185,6 +185,9 @@ model WebsiteAudit {
 
   exists        Boolean  @default(false)
   finalUrl      String?
+  // classificação do link tido como "site": site | instagram | facebook |
+  // aggregator (linktree etc) | whatsapp | other-social | none
+  linkKind      String?
   loadTimeMs    Int?
   // Lighthouse / PSI (0-100)
   perfScore     Int?

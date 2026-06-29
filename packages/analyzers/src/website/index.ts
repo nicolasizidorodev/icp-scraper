@@ -6,6 +6,7 @@ import { parseOnpage } from "./onpage.js";
 import { extractPalette } from "../visual/palette.js";
 import { detectSocial } from "../social/detect.js";
 import { detectAdSignals } from "../ads/detect.js";
+import { classifyLink } from "./classify.js";
 
 const EMPTY_ADS = { runsAdsLikely: false, networks: [], signals: [] };
 import type { AuditStatus } from "@icp/core";
@@ -53,6 +54,7 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
   if (!url) {
     return {
       exists: false,
+      linkKind: "none",
       psi: {},
       tech: EMPTY_TECH,
       robots: { hasRobots: false, hasSitemap: false },
@@ -60,6 +62,29 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
       social: [],
       ads: EMPTY_ADS,
       status: "OK", // "sem site" é um resultado válido, não uma falha
+      failures: [],
+    };
+  }
+
+  // O "site" pode ser um perfil/agregador (Instagram, linktree…). Nesse caso
+  // NÃO é site real: registra como social e não analisa como página.
+  const cls = classifyLink(url);
+  if (cls.kind !== "site") {
+    const social =
+      (cls.kind === "instagram" || cls.kind === "facebook") && cls.handle
+        ? [{ network: cls.kind as "instagram" | "facebook", url, handle: cls.handle }]
+        : [];
+    return {
+      exists: false,
+      finalUrl: url,
+      linkKind: cls.kind,
+      psi: {},
+      tech: EMPTY_TECH,
+      robots: { hasRobots: false, hasSitemap: false },
+      palette: [],
+      social,
+      ads: EMPTY_ADS,
+      status: "OK",
       failures: [],
     };
   }
@@ -76,6 +101,7 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
     return {
       exists: false,
       finalUrl: url,
+      linkKind: "site",
       psi: {},
       tech: EMPTY_TECH,
       robots: { hasRobots: false, hasSitemap: false },
@@ -125,6 +151,7 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
   return {
     exists: true,
     finalUrl: page.finalUrl,
+    linkKind: "site",
     ssl: page.ssl,
     loadTimeMs: page.loadTimeMs,
     psi,

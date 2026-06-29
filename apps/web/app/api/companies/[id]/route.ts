@@ -16,6 +16,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       messages: true,
       websiteAudit: true,
       adProfile: true,
+      gbp: true,
+      socialProfiles: true,
       crmCard: true,
     },
   });

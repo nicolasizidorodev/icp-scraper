@@ -23,6 +23,10 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       icpScore: { select: { total: true, buyingIntent: true, reputation: true } },
       landingPage: { select: { slug: true, status: true } },
       crmCard: { select: { status: true } },
+      websiteAudit: { select: { exists: true, linkKind: true } },
+      gbp: { select: { rating: true } },
+      adProfile: { select: { runsAds: true } },
+      socialProfiles: { select: { network: true } },
       _count: { select: { opportunities: true } },
     },
   });

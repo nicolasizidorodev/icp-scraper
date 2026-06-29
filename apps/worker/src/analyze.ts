@@ -12,6 +12,7 @@ async function persistWebsite(companyId: string, a: WebsiteAnalysis): Promise<vo
     companyId,
     exists: a.exists,
     finalUrl: a.finalUrl ?? null,
+    linkKind: a.linkKind,
     loadTimeMs: a.loadTimeMs ?? null,
     perfScore: psi.perfScore ?? null,
     seoScore: psi.seoScore ?? null,

@@ -26,7 +26,12 @@ function buildBrief(
   ].filter(Boolean) as string[];
 
   if (!audit || !audit.exists) {
-    lines.push("Site: NÃO POSSUI site próprio detectado.");
+    const k = audit?.linkKind;
+    lines.push(
+      k && k !== "site" && k !== "none"
+        ? `Site: NÃO tem site real (link cadastrado é ${k}).`
+        : "Site: NÃO POSSUI site próprio detectado.",
+    );
   } else {
     lines.push(
       `Site: ${audit.finalUrl ?? "(url)"}`,
@@ -88,6 +93,7 @@ function fallbackInput(
     hasRobots: audit?.hasRobots,
     hasSitemap: audit?.hasSitemap,
     runsAds: ad?.runsAds ?? false,
+    linkKind: audit?.linkKind ?? null,
   };
 }
 

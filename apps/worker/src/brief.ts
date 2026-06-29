@@ -35,7 +35,12 @@ export async function buildCompanyBrief(companyId: string): Promise<{
   ].filter(Boolean) as string[];
 
   if (!audit || !audit.exists) {
-    lines.push("Site: NÃO possui site próprio detectado.");
+    const k = audit?.linkKind;
+    lines.push(
+      k && k !== "site" && k !== "none"
+        ? `Site: NÃO tem site real — o link cadastrado é ${k}.`
+        : "Site: NÃO possui site próprio detectado.",
+    );
   } else {
     lines.push(
       `Site: ${audit.finalUrl ?? "(url)"} | Performance ${audit.perfScore ?? "?"}/100 | SEO ${audit.seoScore ?? "?"}/100 | Responsivo ${audit.responsive} | HTTPS ${audit.ssl}`,

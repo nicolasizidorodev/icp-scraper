@@ -75,6 +75,8 @@ export interface RobotsResult {
 export interface WebsiteAnalysis {
   exists: boolean;
   finalUrl?: string;
+  /** site | instagram | facebook | aggregator | whatsapp | other-social | none */
+  linkKind: string;
   ssl?: boolean;
   loadTimeMs?: number;
   psi: PsiResult;

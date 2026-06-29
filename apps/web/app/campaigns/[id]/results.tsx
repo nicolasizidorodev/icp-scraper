@@ -12,7 +12,44 @@ interface CompanyRow {
   icpScore: { total: number; buyingIntent: number; reputation: number } | null;
   landingPage: { slug: string; status: string } | null;
   crmCard: { status: string } | null;
+  websiteAudit: { exists: boolean; linkKind: string | null } | null;
+  gbp: { rating: number | null } | null;
+  adProfile: { runsAds: boolean } | null;
+  socialProfiles: { network: string }[];
   _count: { opportunities: number };
+}
+
+function Pill({ on, label, title }: { on: boolean; label: string; title?: string }) {
+  return (
+    <span
+      title={title}
+      className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+        on ? "bg-emerald-900/70 text-emerald-300" : "bg-neutral-800 text-neutral-600"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function Presence({ c }: { c: CompanyRow }) {
+  const hasSite = !!c.websiteAudit?.exists;
+  const linkKind = c.websiteAudit?.linkKind;
+  const socialLink = linkKind && ["instagram", "facebook", "aggregator"].includes(linkKind);
+  const nets = new Set(c.socialProfiles.map((s) => s.network));
+  return (
+    <div className="flex flex-wrap gap-1">
+      <Pill
+        on={hasSite}
+        label={hasSite ? "Site" : socialLink ? `Site? (${linkKind})` : "Sem site"}
+        title={socialLink ? "O link cadastrado como site é um perfil/agregador, não um site real" : undefined}
+      />
+      <Pill on={!!c.gbp} label="GBP" title="Google Business Profile" />
+      <Pill on={nets.has("instagram")} label="IG" />
+      <Pill on={nets.has("facebook")} label="FB" />
+      <Pill on={!!c.adProfile?.runsAds} label="Ads" title="Investe em tráfego pago" />
+    </div>
+  );
 }
 
 interface Detail {
@@ -20,6 +57,17 @@ interface Detail {
   proposal: { executiveSummary: string; priorities: string; roiEstimate: string } | null;
   messages: { channel: string; subject: string | null; body: string }[];
   landingPage: { slug: string } | null;
+  website: string | null;
+  websiteAudit: {
+    exists: boolean;
+    linkKind: string | null;
+    finalUrl: string | null;
+    perfScore: number | null;
+    seoScore: number | null;
+  } | null;
+  gbp: { rating: number | null; reviewCount: number | null } | null;
+  adProfile: { runsAds: boolean; networks: string[]; activeAds: number | null } | null;
+  socialProfiles: { network: string; url: string | null; handle: string | null }[];
 }
 
 const sevColor: Record<string, string> = {
@@ -53,8 +101,38 @@ function Expanded({ id }: { id: string }) {
   if (loading) return <p className="p-4 text-sm text-neutral-500">Carregando diagnóstico…</p>;
   if (!d) return <p className="p-4 text-sm text-red-400">Falha ao carregar.</p>;
 
+  const wa = d.websiteAudit;
+  const siteLine = wa?.exists
+    ? `${wa.finalUrl ?? d.website ?? "site"} · perf ${wa.perfScore ?? "?"} / seo ${wa.seoScore ?? "?"}`
+    : wa?.linkKind && wa.linkKind !== "site" && wa.linkKind !== "none"
+      ? `sem site real — link cadastrado é ${wa.linkKind}`
+      : "sem site detectado";
+
   return (
-    <div className="grid gap-4 bg-neutral-900/50 p-4 md:grid-cols-3">
+    <div className="bg-neutral-900/50 p-4">
+      <div className="mb-4 rounded-lg border border-neutral-800 bg-neutral-950/40 p-3 text-sm">
+        <h4 className="mb-2 text-xs font-semibold uppercase text-neutral-500">Presença / diagnóstico</h4>
+        <div className="grid gap-1 md:grid-cols-2">
+          <p><span className="text-neutral-500">Site:</span> {siteLine}</p>
+          <p>
+            <span className="text-neutral-500">Google Business:</span>{" "}
+            {d.gbp ? `${d.gbp.rating ?? "?"}★ (${d.gbp.reviewCount ?? 0} reviews)` : "não encontrado"}
+          </p>
+          <p>
+            <span className="text-neutral-500">Redes:</span>{" "}
+            {d.socialProfiles.length
+              ? d.socialProfiles.map((s) => s.handle ? `${s.network}:@${s.handle}` : s.network).join(" · ")
+              : "nenhuma detectada"}
+          </p>
+          <p>
+            <span className="text-neutral-500">Anúncios:</span>{" "}
+            {d.adProfile?.runsAds
+              ? `sim — ${d.adProfile.networks.join(", ") || "rede n/d"}${d.adProfile.activeAds != null ? ` (${d.adProfile.activeAds} ativos)` : ""}`
+              : "sem sinal de tráfego pago"}
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
       <div>
         <h4 className="mb-2 text-xs font-semibold uppercase text-neutral-500">Oportunidades</h4>
         {d.opportunities.length === 0 ? (
@@ -105,6 +183,7 @@ function Expanded({ id }: { id: string }) {
           ))}
         </ul>
       </div>
+      </div>
     </div>
   );
 }
@@ -129,6 +208,7 @@ export function Results({ companies }: { companies: CompanyRow[] }) {
             <th className="px-4 py-2 text-center">ICP</th>
             <th className="px-4 py-2 text-center">Intenção</th>
             <th className="px-4 py-2 text-center">Oport.</th>
+            <th className="px-4 py-2">Presença</th>
             <th className="px-4 py-2">Estágio</th>
             <th className="px-4 py-2">LP</th>
           </tr>
@@ -155,6 +235,7 @@ export function Results({ companies }: { companies: CompanyRow[] }) {
                 </td>
                 <td className="px-4 py-2 text-center text-neutral-400">{c.icpScore?.buyingIntent ?? "—"}</td>
                 <td className="px-4 py-2 text-center text-neutral-400">{c._count.opportunities}</td>
+                <td className="px-4 py-2"><Presence c={c} /></td>
                 <td className="px-4 py-2 text-neutral-400">{c.pipelineStage}</td>
                 <td className="px-4 py-2">
                   {c.landingPage ? (
@@ -174,7 +255,7 @@ export function Results({ companies }: { companies: CompanyRow[] }) {
               </tr>
               {open === c.id && (
                 <tr>
-                  <td colSpan={6} className="p-0">
+                  <td colSpan={7} className="p-0">
                     <Expanded id={c.id} />
                   </td>
                 </tr>
