@@ -13,7 +13,15 @@
  */
 import { prisma } from "@icp/db";
 import { enqueue } from "@icp/queue";
-import { ensureDefaultTenant } from "@icp/secrets";
+
+async function ensureDefaultTenant(): Promise<string> {
+  const t = await prisma.tenant.upsert({
+    where: { slug: "default" },
+    create: { name: "Default", slug: "default" },
+    update: {},
+  });
+  return t.id;
+}
 
 const TIMEOUT_MS = 120_000;
 const POLL_MS = 2_000;
