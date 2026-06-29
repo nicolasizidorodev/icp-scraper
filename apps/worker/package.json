@@ -11,6 +11,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@icp/analyzers": "workspace:*",
     "@icp/collectors": "workspace:*",
     "@icp/config": "workspace:*",
     "@icp/core": "workspace:*",

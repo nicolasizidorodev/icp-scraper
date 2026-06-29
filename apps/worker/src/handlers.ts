@@ -7,6 +7,7 @@ import {
   type CompanyJob,
 } from "@icp/queue";
 import { runDiscovery } from "./discovery.js";
+import { runWebsiteAnalysis } from "./analyze.js";
 
 // Pipeline ponta-a-ponta. discover/dedupe = F2 (reais).
 // Estágios de empresa ainda stub: analyze→F3 · score/opportunities→F4 ...
@@ -75,7 +76,15 @@ export function registerAllWorkers(): void {
     });
 
   companyStub("enrich", "F2: cnpj + resolve social");
-  companyStub("analyze", "F3: website/seo/tech + F5: visual/gbp/social");
+
+  // ANALYZE (F3): análise real de site/SEO/tech. Visual/GBP/social = F5.
+  registerWorker("analyze", async (data, { log }) => {
+    const job = data as CompanyJob;
+    await runWebsiteAnalysis(job.companyId);
+    log.info("ANALYZE — WebsiteAudit + SeoAudit gravados");
+    await advanceCompany(job, "analyze");
+  });
+
   companyStub("score", "F4: motor ICP");
   companyStub("opportunities", "F4: ai.generateOpportunities");
   companyStub("proposal", "F6: ai.generateProposal");
