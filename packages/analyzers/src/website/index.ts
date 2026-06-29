@@ -3,8 +3,10 @@ import { fetchPage, resourceExists, normalizeUrl } from "./http.js";
 import { runPsi } from "./psi.js";
 import { detectTech } from "./techdetect.js";
 import { parseOnpage } from "./onpage.js";
+import { extractPalette } from "../visual/palette.js";
+import { detectSocial } from "../social/detect.js";
 import type { AuditStatus } from "@icp/core";
-import type { RobotsResult, TechResult, WebsiteAnalysis } from "./types.js";
+import type { PsiResult, RobotsResult, TechResult, WebsiteAnalysis } from "./types.js";
 
 const EMPTY_TECH: TechResult = {
   techStack: [],
@@ -51,6 +53,8 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
       psi: {},
       tech: EMPTY_TECH,
       robots: { hasRobots: false, hasSitemap: false },
+      palette: [],
+      social: [],
       status: "OK", // "sem site" é um resultado válido, não uma falha
       failures: [],
     };
@@ -71,6 +75,8 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
       psi: {},
       tech: EMPTY_TECH,
       robots: { hasRobots: false, hasSitemap: false },
+      palette: [],
+      social: [],
       status: "FAILED",
       failures: ["fetch"],
     };
@@ -103,7 +109,7 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
 
   // 3) PSI + robots em paralelo (rede; degradáveis)
   const [psi, robots] = await Promise.all([
-    runPsi(page.finalUrl).catch((err) => {
+    runPsi(page.finalUrl).catch((err): PsiResult => {
       log.warn({ err }, "PSI falhou (sem chave ou rate-limit?)");
       failures.push("psi");
       return {};
@@ -120,6 +126,9 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
     tech,
     onpage,
     robots,
+    palette: extractPalette(page.html),
+    social: detectSocial(page.html),
+    screenshot: psi.screenshot,
     status: statusFrom(failures, 4), // fetch já passou; 4 sub-etapas restantes
     failures,
   };

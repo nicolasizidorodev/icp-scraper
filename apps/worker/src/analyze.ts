@@ -1,9 +1,10 @@
 import { prisma, type Prisma } from "@icp/db";
 import { childLogger } from "@icp/logger";
-import { analyzeWebsite, type WebsiteAnalysis } from "@icp/analyzers";
+import { analyzeWebsite, fetchGbpDetails, type WebsiteAnalysis } from "@icp/analyzers";
+import { getProvider, analyzeScreenshot, type InlineImage } from "@icp/ai";
 
-/** Persiste WebsiteAudit + SeoAudit a partir do resultado da análise (idempotente por companyId). */
-async function persist(companyId: string, a: WebsiteAnalysis): Promise<void> {
+/** Persiste WebsiteAudit + SeoAudit a partir do resultado da análise (idempotente). */
+async function persistWebsite(companyId: string, a: WebsiteAnalysis): Promise<void> {
   const { onpage, psi, tech, robots } = a;
 
   const websiteData: Prisma.WebsiteAuditUncheckedCreateInput = {
@@ -39,7 +40,7 @@ async function persist(companyId: string, a: WebsiteAnalysis): Promise<void> {
     metaTags: (onpage?.metaTags ?? {}) as Prisma.InputJsonValue,
     techStack: tech.techStack as unknown as Prisma.InputJsonValue,
     status: a.status,
-    raw: { failures: a.failures, psi: psi.raw ?? null } as Prisma.InputJsonValue,
+    raw: { failures: a.failures } as Prisma.InputJsonValue,
   };
 
   const seoData: Prisma.SeoAuditUncheckedCreateInput = {
@@ -55,32 +56,130 @@ async function persist(companyId: string, a: WebsiteAnalysis): Promise<void> {
   };
 
   await prisma.$transaction([
-    prisma.websiteAudit.upsert({
-      where: { companyId },
-      create: websiteData,
-      update: websiteData,
-    }),
-    prisma.seoAudit.upsert({
-      where: { companyId },
-      create: seoData,
-      update: seoData,
-    }),
+    prisma.websiteAudit.upsert({ where: { companyId }, create: websiteData, update: websiteData }),
+    prisma.seoAudit.upsert({ where: { companyId }, create: seoData, update: seoData }),
   ]);
 }
 
-/** Estágio ANALYZE (F3): análise de site da empresa. Visual/GBP/social ficam p/ F5. */
-export async function runWebsiteAnalysis(companyId: string): Promise<WebsiteAnalysis> {
+/** Converte data URI do screenshot em imagem inline p/ visão. */
+function toInlineImage(dataUri?: string): InlineImage | null {
+  if (!dataUri) return null;
+  const m = dataUri.match(/^data:(image\/[a-z]+);base64,(.+)$/i);
+  if (!m) return null;
+  return { mediaType: m[1]!, base64: m[2]! };
+}
+
+/** Persiste VisualAnalysis: paleta (programática) + análise de visão por IA (degradável). */
+async function persistVisual(companyId: string, a: WebsiteAnalysis): Promise<void> {
+  if (!a.exists) return;
+  const log = childLogger({ stage: "analyze:visual", companyId });
+
+  const base: Prisma.VisualAnalysisUncheckedCreateInput = {
+    companyId,
+    palette: a.palette,
+    screenshotUrl: a.screenshot ?? null,
+    status: "PARTIAL",
+  };
+
+  const image = toInlineImage(a.screenshot);
+  const provider = getProvider();
+  if (image && (await provider.isReady())) {
+    try {
+      const v = await analyzeScreenshot(image);
+      Object.assign(base, {
+        designQuality: v.designQuality,
+        premiumScore: v.premiumScore,
+        amateurFlags: v.amateurFlags,
+        realPhotos: v.realPhotos,
+        legibility: v.legibility,
+        ctaQuality: v.ctaQuality,
+        uxNotes: v.uxNotes,
+        status: "OK" as const,
+        raw: v as unknown as Prisma.InputJsonValue,
+      });
+    } catch (err) {
+      log.warn({ err }, "visão por IA falhou — mantém só paleta");
+    }
+  }
+
+  await prisma.visualAnalysis.upsert({ where: { companyId }, create: base, update: base });
+}
+
+/** Persiste SocialProfile a partir dos links detectados + campos conhecidos. */
+async function persistSocial(
+  companyId: string,
+  a: WebsiteAnalysis,
+  known: { instagram: string | null; facebook: string | null; linkedin: string | null },
+): Promise<void> {
+  // merge: detectados no site + campos conhecidos (só p/ redes ainda ausentes)
+  const byNet = new Map(a.social.map((s) => [s.network, s]));
+  const addKnown = (network: "instagram" | "facebook" | "linkedin", url: string | null) => {
+    if (url && !byNet.has(network)) byNet.set(network, { network, url });
+  };
+  addKnown("instagram", known.instagram);
+  addKnown("facebook", known.facebook);
+  addKnown("linkedin", known.linkedin);
+
+  const merged = [...byNet.values()];
+  if (merged.length === 0) return;
+
+  await prisma.$transaction(
+    merged.map((s) =>
+      prisma.socialProfile.upsert({
+        where: { companyId_network: { companyId, network: s.network } },
+        create: { companyId, network: s.network, url: s.url, handle: s.handle ?? null, status: "PARTIAL" },
+        update: { url: s.url, handle: s.handle ?? null, status: "PARTIAL" },
+      }),
+    ),
+  );
+}
+
+/** Persiste GbpProfile via Place Details (degradável). */
+async function persistGbp(companyId: string, placeId: string | null): Promise<void> {
+  if (!placeId) return;
+  const log = childLogger({ stage: "analyze:gbp", companyId });
+  try {
+    const g = await fetchGbpDetails(placeId);
+    const data: Prisma.GbpProfileUncheckedCreateInput = {
+      companyId,
+      rating: g.rating ?? null,
+      reviewCount: g.reviewCount ?? null,
+      reviewFrequency: g.reviewFrequency ?? null,
+      lastReviewAt: g.lastReviewAt ?? null,
+      photoCount: g.photoCount ?? null,
+      categories: g.categories,
+      description: g.description ?? null,
+      status: g.status,
+      raw: (g.raw ?? null) as Prisma.InputJsonValue,
+    };
+    await prisma.gbpProfile.upsert({ where: { companyId }, create: data, update: data });
+  } catch (err) {
+    log.warn({ err }, "GBP details falhou (sem chave ou erro de API)");
+  }
+}
+
+/** Estágio ANALYZE (F3+F5): site/SEO/tech + visual + GBP + social. Degradável. */
+export async function runAnalyze(companyId: string): Promise<WebsiteAnalysis> {
   const log = childLogger({ stage: "analyze", companyId });
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
-    select: { website: true },
+    select: { website: true, googlePlaceId: true, instagram: true, facebook: true, linkedin: true },
   });
 
   const result = await analyzeWebsite(company.website);
-  await persist(companyId, result);
-  log.info(
-    { exists: result.exists, status: result.status, perf: result.psi.perfScore },
-    "análise de site concluída",
-  );
+  await persistWebsite(companyId, result);
+
+  // enriquecimento F5 em paralelo, cada um degradável
+  await Promise.all([
+    persistVisual(companyId, result),
+    persistSocial(companyId, result, {
+      instagram: company.instagram,
+      facebook: company.facebook,
+      linkedin: company.linkedin,
+    }),
+    persistGbp(companyId, company.googlePlaceId),
+  ]);
+
+  log.info({ exists: result.exists, status: result.status }, "ANALYZE concluído (site+visual+gbp+social)");
   return result;
 }

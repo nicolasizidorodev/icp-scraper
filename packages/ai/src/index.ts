@@ -5,6 +5,7 @@ export { generateOpportunities, AiOpportunity, AiOpportunityList } from "./oppor
 export { generateProposal } from "./proposal.js";
 export { generateLandingCopy } from "./landing.js";
 export { generateOutreach, AiOutreachMessage, AiOutreachList } from "./outreach.js";
+export { analyzeScreenshot } from "./vision.js";
 export { anthropicProvider } from "./anthropic.js";
 export { openaiProvider } from "./openai.js";
 export {
@@ -12,4 +13,5 @@ export {
   type ILLMProvider,
   type CompletionRequest,
   type ModelTier,
+  type InlineImage,
 } from "./types.js";

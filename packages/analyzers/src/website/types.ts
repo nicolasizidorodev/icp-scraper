@@ -21,6 +21,8 @@ export interface PsiResult {
   cls?: number;
   inpMs?: number;
   cwvPass?: boolean;
+  /** Screenshot final do Lighthouse (data URI). Reusado pela análise visual. */
+  screenshot?: string;
   raw?: unknown;
 }
 
@@ -79,6 +81,12 @@ export interface WebsiteAnalysis {
   tech: TechResult;
   onpage?: OnpageResult;
   robots: RobotsResult;
+  /** Paleta de cores dominante extraída do HTML (p/ tematizar a LP). */
+  palette: string[];
+  /** Perfis sociais detectados em links do site (sem scraping). */
+  social: { network: "instagram" | "facebook" | "linkedin"; url: string; handle?: string }[];
+  /** Screenshot final (data URI) p/ análise visual, se o PSI retornou. */
+  screenshot?: string;
   status: AuditStatus;
   failures: string[];
 }

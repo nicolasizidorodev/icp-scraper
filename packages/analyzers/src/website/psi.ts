@@ -8,7 +8,10 @@ const ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 interface PsiApiResponse {
   lighthouseResult?: {
     categories?: Record<string, { score?: number | null }>;
-    audits?: Record<string, { numericValue?: number; score?: number | null }>;
+    audits?: Record<
+      string,
+      { numericValue?: number; score?: number | null; details?: { data?: string } }
+    >;
   };
 }
 
@@ -57,6 +60,7 @@ export async function runPsi(url: string, timeoutMs = 60000): Promise<PsiResult>
       cls: cls == null ? undefined : Number(cls.toFixed(3)),
       inpMs: inpMs == null ? undefined : Math.round(inpMs),
       cwvPass,
+      screenshot: audits["final-screenshot"]?.details?.data,
     };
   } finally {
     clearTimeout(timer);

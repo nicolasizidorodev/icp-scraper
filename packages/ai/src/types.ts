@@ -1,6 +1,12 @@
 /** Camada/tier de modelo → mapeia p/ MODEL_BULK | MODEL_LONGFORM | MODEL_VISION. */
 export type ModelTier = "bulk" | "longform" | "vision";
 
+/** Imagem inline p/ análise de visão (base64 + media type). */
+export interface InlineImage {
+  base64: string;
+  mediaType: string; // ex: "image/jpeg"
+}
+
 export interface CompletionRequest {
   system?: string;
   prompt: string;
@@ -11,6 +17,8 @@ export interface CompletionRequest {
   temperature?: number;
   /** Pede saída JSON pura (response_format / instrução). */
   json?: boolean;
+  /** Imagem p/ multimodal (vision). */
+  image?: InlineImage;
 }
 
 /** Provider de LLM intercambiável (claude | openai). */

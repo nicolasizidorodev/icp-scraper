@@ -19,9 +19,19 @@ export const openaiProvider: ILLMProvider = {
     const key = await getApiKey("OPENAI_API_KEY");
     if (!key) throw new LLMUnavailableError("OPENAI_API_KEY ausente (configure na UI ou .env)");
 
+    const userContent = req.image
+      ? [
+          { type: "text" as const, text: req.prompt },
+          {
+            type: "image_url" as const,
+            image_url: { url: `data:${req.image.mediaType};base64,${req.image.base64}` },
+          },
+        ]
+      : req.prompt;
+
     const messages = [
       ...(req.system ? [{ role: "system" as const, content: req.system }] : []),
-      { role: "user" as const, content: req.prompt },
+      { role: "user" as const, content: userContent },
     ];
 
     const res = await fetch(ENDPOINT, {

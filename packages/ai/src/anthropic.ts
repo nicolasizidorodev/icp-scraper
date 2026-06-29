@@ -36,7 +36,24 @@ export const anthropicProvider: ILLMProvider = {
         max_tokens: req.maxTokens ?? 2048,
         temperature: req.temperature ?? 0.4,
         ...(system ? { system } : {}),
-        messages: [{ role: "user", content: req.prompt }],
+        messages: [
+          {
+            role: "user",
+            content: req.image
+              ? [
+                  {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: req.image.mediaType,
+                      data: req.image.base64,
+                    },
+                  },
+                  { type: "text", text: req.prompt },
+                ]
+              : req.prompt,
+          },
+        ],
       }),
     });
 

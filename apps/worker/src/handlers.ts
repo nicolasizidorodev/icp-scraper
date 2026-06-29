@@ -7,7 +7,7 @@ import {
   type CompanyJob,
 } from "@icp/queue";
 import { runDiscovery } from "./discovery.js";
-import { runWebsiteAnalysis } from "./analyze.js";
+import { runAnalyze } from "./analyze.js";
 import { runScore } from "./score.js";
 import { runOpportunities } from "./opportunities.js";
 import { runProposal } from "./proposal.js";
@@ -82,11 +82,11 @@ export function registerAllWorkers(): void {
 
   companyStub("enrich", "F2: cnpj + resolve social");
 
-  // ANALYZE (F3): análise real de site/SEO/tech. Visual/GBP/social = F5.
+  // ANALYZE (F3+F5): site/SEO/tech + visual + GBP + social (cada um degradável).
   registerWorker("analyze", async (data, { log }) => {
     const job = data as CompanyJob;
-    await runWebsiteAnalysis(job.companyId);
-    log.info("ANALYZE — WebsiteAudit + SeoAudit gravados");
+    await runAnalyze(job.companyId);
+    log.info("ANALYZE — auditorias gravadas");
     await advanceCompany(job, "analyze");
   });
 
