@@ -19,10 +19,11 @@ export async function buildCompanyBrief(companyId: string): Promise<{
       reviewCount: true,
     },
   });
-  const [audit, seo, score, opportunities] = await Promise.all([
+  const [audit, seo, score, ad, opportunities] = await Promise.all([
     prisma.websiteAudit.findUnique({ where: { companyId } }),
     prisma.seoAudit.findUnique({ where: { companyId } }),
     prisma.icpScore.findUnique({ where: { companyId } }),
+    prisma.adProfile.findUnique({ where: { companyId } }),
     prisma.opportunity.findMany({ where: { companyId }, orderBy: { severity: "desc" } }),
   ]);
 
@@ -41,6 +42,12 @@ export async function buildCompanyBrief(companyId: string): Promise<{
       `Conversão: whatsapp=${audit.hasWhatsappBtn} agendamento=${audit.hasBooking} formulário=${audit.hasForms} | Marketing: pixel=${audit.hasMetaPixel} GA=${audit.hasGA}`,
     );
     if (seo?.title) lines.push(`SEO title: "${seo.title}"`);
+  }
+
+  if (ad?.runsAds) {
+    lines.push(
+      `Mídia paga: investe em anúncios (${ad.networks.join(", ") || "rede não identificada"}${ad.activeAds != null ? `, ${ad.activeAds} ativos` : ""}).`,
+    );
   }
 
   if (score) lines.push(`ICP score: ${score.total}/100 (intenção de compra ${score.buyingIntent})`);

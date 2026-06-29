@@ -15,6 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       landingPage: { select: { slug: true, status: true, url: true } },
       messages: true,
       websiteAudit: true,
+      adProfile: true,
       crmCard: true,
     },
   });

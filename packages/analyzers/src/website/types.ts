@@ -85,6 +85,8 @@ export interface WebsiteAnalysis {
   palette: string[];
   /** Perfis sociais detectados em links do site (sem scraping). */
   social: { network: "instagram" | "facebook" | "linkedin"; url: string; handle?: string }[];
+  /** Sinais de mídia paga detectados no HTML (heurística). */
+  ads: { runsAdsLikely: boolean; networks: string[]; signals: string[] };
   /** Screenshot final (data URI) p/ análise visual, se o PSI retornou. */
   screenshot?: string;
   status: AuditStatus;

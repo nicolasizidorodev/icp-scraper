@@ -23,18 +23,18 @@ function rawReputation(rating?: number | null, reviewCount?: number | null): num
   return 0.5 * ratingScore + 0.5 * volumeScore;
 }
 
-/** Investimento em marketing digital = sinal forte de disposição a pagar. */
-function rawMarketing(w: WebsiteSignals | null): number {
-  if (!w || !w.exists) return 0;
-  const signals = [
-    w.hasMetaPixel,
-    w.hasGA,
-    w.hasGTM,
-    w.hasBooking,
-    w.hasChat,
-    w.hasWhatsappBtn,
-  ];
-  return signals.filter(Boolean).length / signals.length;
+/**
+ * Investimento em marketing = sinal forte de disposição a pagar.
+ * Rodar mídia paga (runsAds) é a prova mais forte → piso alto no sub-score.
+ */
+function rawMarketing(w: WebsiteSignals | null, runsAds?: boolean | null): number {
+  let base = 0;
+  if (w && w.exists) {
+    const signals = [w.hasMetaPixel, w.hasGA, w.hasGTM, w.hasBooking, w.hasChat, w.hasWhatsappBtn];
+    base = signals.filter(Boolean).length / signals.length;
+  }
+  // Já paga tráfego: tem caixa e intenção comprovada → garante piso de 0.7.
+  return runsAds ? Math.max(base, 0.7) : base;
 }
 
 /** Gap digital = tamanho da oportunidade de venda (sem site = gap máximo). */
@@ -70,7 +70,7 @@ function item(raw: number, weight: number): ScoreBreakdownItem {
 /** Motor ICP v1 — puro, versionado, explicável. */
 export function computeIcpScore(input: ScoringInput): IcpScoreResult {
   const reputation = item(rawReputation(input.rating, input.reviewCount), WEIGHTS.reputation);
-  const marketing = item(rawMarketing(input.website), WEIGHTS.marketing);
+  const marketing = item(rawMarketing(input.website, input.runsAds), WEIGHTS.marketing);
   const digitalGap = item(rawDigitalGap(input.website), WEIGHTS.digitalGap);
   const reachGap = item(rawReachGap(input.website), WEIGHTS.reachGap);
   const consolidation = item(

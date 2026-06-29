@@ -123,6 +123,7 @@ model Company {
   seoAudit      SeoAudit?
   visualAnalysis VisualAnalysis?
   socialProfiles SocialProfile[]
+  adProfile     AdProfile?
   icpScore      IcpScore?
   opportunities Opportunity[]
   proposal      Proposal?
@@ -282,6 +283,21 @@ model SocialProfile {
   updatedAt   DateTime @updatedAt
 
   @@unique([companyId, network])
+}
+
+// Anúncios / mídia paga (heurística por pixels + Meta Ad Library)
+model AdProfile {
+  id         String   @id @default(cuid())
+  companyId  String   @unique
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  runsAds    Boolean  @default(false) // investe em tráfego pago (heurística)
+  networks   String[] // Google Ads | Meta Ads | TikTok Ads | ...
+  signals    String[] // evidências exatas detectadas
+  activeAds  Int?     // anúncios ativos confirmados (Meta Ad Library)
+  source     String   @default("heuristic") // heuristic | heuristic+meta
+  status     AuditStatus @default(PENDING)
+  raw        Json?
+  updatedAt  DateTime @updatedAt
 }
 
 // ───────────────────────── ICP score ─────────────────────────

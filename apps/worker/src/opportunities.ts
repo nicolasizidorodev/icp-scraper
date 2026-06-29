@@ -17,6 +17,7 @@ function buildBrief(
   company: { name: string; category: string | null; rating: number | null; reviewCount: number | null },
   audit: Awaited<ReturnType<typeof loadData>>["audit"],
   seo: Awaited<ReturnType<typeof loadData>>["seo"],
+  ad: Awaited<ReturnType<typeof loadData>>["ad"],
 ): string {
   const lines = [
     `Empresa: ${company.name}`,
@@ -36,6 +37,9 @@ function buildBrief(
     );
     if (seo) lines.push(`SEO meta: title="${seo.title ?? ""}" desc="${(seo.description ?? "").slice(0, 80)}"`);
   }
+  if (ad?.runsAds) {
+    lines.push(`Mídia paga: investe em anúncios (${ad.networks.join(", ") || "rede n/d"}${ad.activeAds != null ? `, ${ad.activeAds} ativos` : ""}).`);
+  }
   return lines.join("\n");
 }
 
@@ -46,12 +50,14 @@ async function loadData(companyId: string) {
   });
   const audit = await prisma.websiteAudit.findUnique({ where: { companyId } });
   const seo = await prisma.seoAudit.findUnique({ where: { companyId } });
-  return { company, audit, seo };
+  const ad = await prisma.adProfile.findUnique({ where: { companyId } });
+  return { company, audit, seo, ad };
 }
 
 function fallbackInput(
   audit: Awaited<ReturnType<typeof loadData>>["audit"],
   seo: Awaited<ReturnType<typeof loadData>>["seo"],
+  ad: Awaited<ReturnType<typeof loadData>>["ad"],
 ): OpportunityInput {
   return {
     website:
@@ -81,6 +87,7 @@ function fallbackInput(
       : undefined,
     hasRobots: audit?.hasRobots,
     hasSitemap: audit?.hasSitemap,
+    runsAds: ad?.runsAds ?? false,
   };
 }
 
@@ -90,10 +97,10 @@ function fallbackInput(
  */
 export async function runOpportunities(companyId: string, campaignId: string): Promise<number> {
   const log = childLogger({ stage: "opportunities", companyId });
-  const { company, audit, seo } = await loadData(companyId);
+  const { company, audit, seo, ad } = await loadData(companyId);
 
   let rows: OppRow[] = [];
-  const brief = buildBrief(company, audit, seo);
+  const brief = buildBrief(company, audit, seo, ad);
 
   const ai = await tryAi(
     campaignId,
@@ -111,7 +118,7 @@ export async function runOpportunities(companyId: string, campaignId: string): P
   }
 
   if (rows.length === 0) {
-    rows = deriveOpportunities(fallbackInput(audit, seo)).map((o) => ({
+    rows = deriveOpportunities(fallbackInput(audit, seo, ad)).map((o) => ({
       title: o.title,
       detail: o.detail,
       severity: o.severity,

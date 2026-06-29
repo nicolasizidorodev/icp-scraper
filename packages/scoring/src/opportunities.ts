@@ -16,6 +16,7 @@ export interface OpportunityInput {
   seo?: SeoSignals;
   hasRobots?: boolean;
   hasSitemap?: boolean;
+  runsAds?: boolean | null;
 }
 
 /**
@@ -26,6 +27,19 @@ export interface OpportunityInput {
 export function deriveOpportunities(input: OpportunityInput): DerivedOpportunity[] {
   const out: DerivedOpportunity[] = [];
   const w = input.website;
+
+  // Pitch matador: paga tráfego mas o destino (site) converte mal ou nem existe.
+  const weakDestination =
+    !w || !w.exists || w.responsive === false || (typeof w.perfScore === "number" && w.perfScore < 50);
+  if (input.runsAds && weakDestination) {
+    out.push({
+      title: "Paga anúncios mas perde no destino",
+      detail:
+        "A empresa investe em mídia paga, porém o site/destino para onde manda o tráfego tem falhas (lento, não responsivo ou inexistente). Está pagando por cliques que convertem abaixo do potencial — dinheiro indo embora.",
+      severity: "CRITICAL",
+      evidence: { runsAds: true, websiteExists: !!w?.exists, perfScore: w?.perfScore ?? null },
+    });
+  }
 
   if (!w || !w.exists) {
     out.push({

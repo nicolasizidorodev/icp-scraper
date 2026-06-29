@@ -1,6 +1,6 @@
 import { prisma, type Prisma } from "@icp/db";
 import { childLogger } from "@icp/logger";
-import { analyzeWebsite, fetchGbpDetails, type WebsiteAnalysis } from "@icp/analyzers";
+import { analyzeWebsite, fetchGbpDetails, fetchMetaAds, type WebsiteAnalysis } from "@icp/analyzers";
 import { analyzeScreenshot, type InlineImage } from "@icp/ai";
 import { tryAi } from "./aiguard.js";
 
@@ -136,6 +136,41 @@ async function persistSocial(
   );
 }
 
+/** Persiste AdProfile: heurística (pixels/tags) + Meta Ad Library (se houver token). */
+async function persistAds(
+  companyId: string,
+  a: WebsiteAnalysis,
+  company: { name: string; city: string | null },
+): Promise<void> {
+  const log = childLogger({ stage: "analyze:ads", companyId });
+  const networks = new Set(a.ads.networks);
+  let activeAds: number | null = null;
+  let source = "heuristic";
+
+  try {
+    const meta = await fetchMetaAds([company.name, company.city].filter(Boolean).join(" "));
+    if (meta) {
+      activeAds = meta.activeAds;
+      if (meta.activeAds > 0) networks.add("Meta Ads");
+      source = "heuristic+meta";
+    }
+  } catch (err) {
+    log.warn({ err }, "Meta Ad Library falhou");
+  }
+
+  const runsAds = a.ads.runsAdsLikely || (activeAds ?? 0) > 0;
+  const data: Prisma.AdProfileUncheckedCreateInput = {
+    companyId,
+    runsAds,
+    networks: [...networks],
+    signals: a.ads.signals,
+    activeAds,
+    source,
+    status: "OK",
+  };
+  await prisma.adProfile.upsert({ where: { companyId }, create: data, update: data });
+}
+
 /** Persiste GbpProfile via Place Details (degradável). */
 async function persistGbp(companyId: string, placeId: string | null): Promise<void> {
   if (!placeId) return;
@@ -165,7 +200,15 @@ export async function runAnalyze(companyId: string, campaignId: string): Promise
   const log = childLogger({ stage: "analyze", companyId });
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
-    select: { website: true, googlePlaceId: true, instagram: true, facebook: true, linkedin: true },
+    select: {
+      name: true,
+      city: true,
+      website: true,
+      googlePlaceId: true,
+      instagram: true,
+      facebook: true,
+      linkedin: true,
+    },
   });
 
   const result = await analyzeWebsite(company.website);
@@ -180,6 +223,7 @@ export async function runAnalyze(companyId: string, campaignId: string): Promise
       linkedin: company.linkedin,
     }),
     persistGbp(companyId, company.googlePlaceId),
+    persistAds(companyId, result, { name: company.name, city: company.city }),
   ]);
 
   log.info({ exists: result.exists, status: result.status }, "ANALYZE concluído (site+visual+gbp+social)");

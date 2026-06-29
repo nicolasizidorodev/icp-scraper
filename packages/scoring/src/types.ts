@@ -22,6 +22,7 @@ export interface ScoringInput {
   reviewCount?: number | null;
   yearsActive?: number | null;
   website: WebsiteSignals | null; // null = empresa sem site detectado
+  runsAds?: boolean | null; // investe em mídia paga (prova de caixa + intenção)
 }
 
 /** Oportunidade derivada por regra (fallback determinístico sem IA). */

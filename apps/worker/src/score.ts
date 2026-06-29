@@ -33,12 +33,17 @@ export async function runScore(companyId: string, scoringVersion: string): Promi
     select: { rating: true, reviewCount: true, yearsActive: true },
   });
   const audit = await loadAudit(companyId);
+  const ad = await prisma.adProfile.findUnique({
+    where: { companyId },
+    select: { runsAds: true },
+  });
 
   const input: ScoringInput = {
     rating: company.rating,
     reviewCount: company.reviewCount,
     yearsActive: company.yearsActive,
     website: toSignals(audit),
+    runsAds: ad?.runsAds ?? false,
   };
   const result = computeIcpScore(input);
 

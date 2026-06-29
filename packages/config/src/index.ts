@@ -55,6 +55,7 @@ const EnvSchema = z.object({
   GOOGLE_PLACES_API_KEY: z.string().optional(),
   PAGESPEED_API_KEY: z.string().optional(),
   GOOGLE_MAPS_API_KEY: z.string().optional(),
+  META_AD_LIBRARY_TOKEN: z.string().optional(),
   COLLECTOR_PLACES_ENABLED: boolish.default("true"),
   COLLECTOR_CNPJ_ENABLED: boolish.default("true"),
   COLLECTOR_APIFY_ENABLED: boolish.default("false"),

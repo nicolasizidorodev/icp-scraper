@@ -5,6 +5,9 @@ import { detectTech } from "./techdetect.js";
 import { parseOnpage } from "./onpage.js";
 import { extractPalette } from "../visual/palette.js";
 import { detectSocial } from "../social/detect.js";
+import { detectAdSignals } from "../ads/detect.js";
+
+const EMPTY_ADS = { runsAdsLikely: false, networks: [], signals: [] };
 import type { AuditStatus } from "@icp/core";
 import type { PsiResult, RobotsResult, TechResult, WebsiteAnalysis } from "./types.js";
 
@@ -55,6 +58,7 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
       robots: { hasRobots: false, hasSitemap: false },
       palette: [],
       social: [],
+      ads: EMPTY_ADS,
       status: "OK", // "sem site" é um resultado válido, não uma falha
       failures: [],
     };
@@ -77,6 +81,7 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
       robots: { hasRobots: false, hasSitemap: false },
       palette: [],
       social: [],
+      ads: EMPTY_ADS,
       status: "FAILED",
       failures: ["fetch"],
     };
@@ -128,6 +133,7 @@ export async function analyzeWebsite(rawUrl: string | null | undefined): Promise
     robots,
     palette: extractPalette(page.html),
     social: detectSocial(page.html),
+    ads: detectAdSignals(page.html, page.headers),
     screenshot: psi.screenshot,
     status: statusFrom(failures, 4), // fetch já passou; 4 sub-etapas restantes
     failures,
