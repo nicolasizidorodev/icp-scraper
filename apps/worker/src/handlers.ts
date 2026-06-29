@@ -12,6 +12,7 @@ import { runScore } from "./score.js";
 import { runOpportunities } from "./opportunities.js";
 import { runProposal } from "./proposal.js";
 import { runLanding } from "./landing.js";
+import { runOutreach } from "./messages.js";
 
 // Pipeline ponta-a-ponta. discover/dedupe = F2 (reais).
 // Estágios de empresa ainda stub: analyze→F3 · score/opportunities→F4 ...
@@ -121,7 +122,13 @@ export function registerAllWorkers(): void {
     await advanceCompany(job, "landing");
   });
 
-  companyStub("messages", "F7: ai.generateOutreach");
+  // MESSAGES (F7): outreach WhatsApp + Email (IA → fallback por regra).
+  registerWorker("messages", async (data, { log }) => {
+    const job = data as CompanyJob;
+    const n = await runOutreach(job.companyId);
+    log.info({ count: n }, "MESSAGES — gravadas");
+    await advanceCompany(job, "messages");
+  });
 
   registerWorker("finalize", async (data, { log }) => {
     const job = data as CompanyJob;

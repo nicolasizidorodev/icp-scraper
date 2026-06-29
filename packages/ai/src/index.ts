@@ -4,6 +4,7 @@ export { resolveModel } from "./models.js";
 export { generateOpportunities, AiOpportunity, AiOpportunityList } from "./opportunities.js";
 export { generateProposal } from "./proposal.js";
 export { generateLandingCopy } from "./landing.js";
+export { generateOutreach, AiOutreachMessage, AiOutreachList } from "./outreach.js";
 export { anthropicProvider } from "./anthropic.js";
 export { openaiProvider } from "./openai.js";
 export {
