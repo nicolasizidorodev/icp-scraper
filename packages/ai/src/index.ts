@@ -2,6 +2,8 @@ export { getProvider } from "./provider.js";
 export { completeJson, extractJson } from "./json.js";
 export { resolveModel } from "./models.js";
 export { generateOpportunities, AiOpportunity, AiOpportunityList } from "./opportunities.js";
+export { generateProposal } from "./proposal.js";
+export { generateLandingCopy } from "./landing.js";
 export { anthropicProvider } from "./anthropic.js";
 export { openaiProvider } from "./openai.js";
 export {

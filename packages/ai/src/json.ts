@@ -22,7 +22,10 @@ export interface JsonRequest extends Omit<CompletionRequest, "json"> {
  * Completa + valida saída estruturada contra um schema zod.
  * 1 retry com feedback do erro de validação. Lança se ainda inválido.
  */
-export async function completeJson<T>(schema: z.ZodType<T>, req: JsonRequest): Promise<T> {
+export async function completeJson<T>(
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  req: JsonRequest,
+): Promise<T> {
   const provider = getProvider(req.provider);
   let lastErr = "";
 

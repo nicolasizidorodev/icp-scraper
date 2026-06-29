@@ -10,6 +10,8 @@ import { runDiscovery } from "./discovery.js";
 import { runWebsiteAnalysis } from "./analyze.js";
 import { runScore } from "./score.js";
 import { runOpportunities } from "./opportunities.js";
+import { runProposal } from "./proposal.js";
+import { runLanding } from "./landing.js";
 
 // Pipeline ponta-a-ponta. discover/dedupe = F2 (reais).
 // Estágios de empresa ainda stub: analyze→F3 · score/opportunities→F4 ...
@@ -103,8 +105,22 @@ export function registerAllWorkers(): void {
     await advanceCompany(job, "opportunities");
   });
 
-  companyStub("proposal", "F6: ai.generateProposal");
-  companyStub("landing", "F6: generateLandingCopy + lp-generator");
+  // PROPOSAL (F6): proposta comercial (IA → fallback por regra).
+  registerWorker("proposal", async (data, { log }) => {
+    const job = data as CompanyJob;
+    await runProposal(job.companyId);
+    log.info("PROPOSAL — gravada");
+    await advanceCompany(job, "proposal");
+  });
+
+  // LANDING (F6): copy personalizada + render HTML autônomo → LandingPage.
+  registerWorker("landing", async (data, { log }) => {
+    const job = data as CompanyJob;
+    const slug = await runLanding(job.companyId);
+    log.info({ slug }, "LANDING — gerada");
+    await advanceCompany(job, "landing");
+  });
+
   companyStub("messages", "F7: ai.generateOutreach");
 
   registerWorker("finalize", async (data, { log }) => {

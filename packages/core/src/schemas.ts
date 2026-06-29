@@ -39,6 +39,17 @@ export const LandingCopy = z.object({
 });
 export type LandingCopy = z.infer<typeof LandingCopy>;
 
+/** Conteúdo estruturado da proposta comercial gerada por IA. */
+export const ProposalContent = z.object({
+  executiveSummary: z.string().min(40),
+  problems: z.string().min(40),
+  estimatedImpact: z.string().min(20),
+  suggestions: z.string().min(40),
+  roiEstimate: z.string().min(10),
+  priorities: z.string().min(20),
+});
+export type ProposalContent = z.infer<typeof ProposalContent>;
+
 /** Saída estruturada da análise visual por LLM. */
 export const VisualAnalysisResult = z.object({
   designQuality: z.number().int().min(0).max(100),

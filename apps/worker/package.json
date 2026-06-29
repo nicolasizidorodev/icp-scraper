@@ -18,6 +18,7 @@
     "@icp/core": "workspace:*",
     "@icp/db": "workspace:*",
     "@icp/logger": "workspace:*",
+    "@icp/lp-generator": "workspace:*",
     "@icp/queue": "workspace:*",
     "@icp/scoring": "workspace:*"
   },

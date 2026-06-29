@@ -109,6 +109,9 @@ importers:
       '@icp/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@icp/lp-generator':
+        specifier: workspace:*
+        version: link:../../packages/lp-generator
       '@icp/queue':
         specifier: workspace:*
         version: link:../../packages/queue
@@ -249,6 +252,19 @@ importers:
       typescript:
         specifier: ^5.6.2
         version: 5.9.3
+
+  packages/lp-generator:
+    dependencies:
+      '@icp/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.2
+        version: 2.1.9(@types/node@22.20.0)(lightningcss@1.32.0)
 
   packages/queue:
     dependencies:
