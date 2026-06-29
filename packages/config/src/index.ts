@@ -1,4 +1,31 @@
 import { z } from "zod";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+// Carrega o .env da raiz do monorepo (busca subindo a partir do cwd) p/ que
+// worker/scripts via tsx enxerguem as vars. Não sobrescreve env já definida
+// (loadEnvFile segue a precedência do --env-file). Next.js já carrega o seu.
+function loadDotenv(): void {
+  const loader = (process as NodeJS.Process & { loadEnvFile?: (p: string) => void })
+    .loadEnvFile;
+  if (typeof loader !== "function") return;
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidate = join(dir, ".env");
+    if (existsSync(candidate)) {
+      try {
+        loader(candidate);
+      } catch {
+        /* arquivo inválido — ignora, validação do EnvSchema reporta */
+      }
+      return;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+}
+loadDotenv();
 
 // Carrega e valida env uma vez. Falha cedo se faltar config crítica.
 // Segredos só são lidos aqui (server/worker), nunca expostos ao client.
